@@ -1,6 +1,21 @@
-# Following this tutorial:
+# Following DADA2 Pipeline Tutorial on a Small Multi-Sample Dataset
+# Ursula H. Neumann
+# Mar 25/19
+
+# Introduction ----
+# Tutorial instructions can be found here:
 # https://benjjneb.github.io/dada2/tutorial.html
 
+# Our starting point is a set of Illumina-sequenced paired-end fastq files that 
+# have been split (or "demultiplexed") by sample and from which the 
+# barcodes/adapters have already been removed. The end product is an amplicon 
+# sequence variant (ASV) table, a higher-resolution analogue of the traditional 
+# OTU table, which records the number of times each exact amplicon sequence 
+# variant was observed in each sample. We also assign taxonomy to the output 
+# sequences, and demonstrate how the data can be imported into the popular 
+# phyloseq R package for the analysis of microbiome data.
+
+# Set up ----
 # Load packages
 library(dada2); packageVersion("dada2")
 library(DECIPHER); packageVersion("DECIPHER")
@@ -26,7 +41,8 @@ fnRs <- sort(list.files(path, pattern="_R2_001.fastq", full.names = TRUE))
 # Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq
 sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
 
-# Inspect quality of forward reads.
+# Read quality ----
+# Inspect quality of forward reads
 # In gray-scale is a heat map of the frequency of each quality score at each 
 # base position. The median quality score at each position is shown by the green
 # line, and the quartiles of the quality score distribution by the orange lines. 
@@ -37,6 +53,7 @@ plotQualityProfile(fnFs[1:2])
 # Inspect quality of reverse reads.
 plotQualityProfile(fnRs[1:2])
 
+# Filter and trim ----
 # Place filtered files in filtered/ subdirectory
 filtFs <- file.path(path, "filtered", paste0(sample.names, "_F_filt.fastq.gz"))
 filtRs <- file.path(path, "filtered", paste0(sample.names, "_R_filt.fastq.gz"))
@@ -49,6 +66,7 @@ out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,160),
 # View first few lines of 'out'
 head(out)
 
+# Learn error rates ----
 # Learn the error rates
 errF <- learnErrors(filtFs, multithread=TRUE)
 errR <- learnErrors(filtRs, multithread=TRUE)
@@ -61,6 +79,7 @@ errR <- learnErrors(filtRs, multithread=TRUE)
 # nominal definition of the Q-score. 
 plotErrors(errF, nominalQ=TRUE)
 
+# Dereplication ----
 # Perform dereplication.  Dereplication combines all identical sequencing reads 
 # into into "unique sequences" with a corresponding "abundance" equal to the 
 # number of reads with that unique sequence. Dereplication substantially reduces
@@ -72,6 +91,7 @@ derepRs <- derepFastq(filtRs, verbose=TRUE)
 names(derepFs) <- sample.names
 names(derepRs) <- sample.names
 
+# Sample inference ----
 # Apply the core sample inference algorithm to the dereplicated data.
 dadaFs <- dada(derepFs, err=errF, multithread=TRUE)
 dadaRs <- dada(derepRs, err=errR, multithread=TRUE)
@@ -79,13 +99,14 @@ dadaRs <- dada(derepRs, err=errR, multithread=TRUE)
 # Inspect the returned dada-class object.
 dadaFs[[1]]
 
-# Merge the forward and reverse reads together to obtain the full denoised 
-# sequences. 
+# Merge paired reads ----
+# Merge the forward/reverse reads together to obtain the full denoised sequences
 mergers <- mergePairs(dadaFs, derepFs, dadaRs, derepRs, verbose=TRUE)
 
 # Inspect the merger data.frame from the first sample
 head(mergers[[1]])
 
+# Sequence table ----
 # Construct an amplicon sequence variant table (ASV) table.
 seqtab <- makeSequenceTable(mergers)
 dim(seqtab)
@@ -93,12 +114,13 @@ dim(seqtab)
 # Inspect distribution of sequence lengths
 table(nchar(getSequences(seqtab)))
 
-# Remove chimeras.
+# Remove chimeras ----
 seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", 
                                     multithread=TRUE, verbose=TRUE)
 dim(seqtab.nochim)
 sum(seqtab.nochim)/sum(seqtab)
 
+# Track reads through pipeline ----
 # As a final check of our progress, we'll look at the number of reads that made 
 # it through each step in the pipeline:
 getN <- function(x) sum(getUniques(x))
@@ -112,6 +134,7 @@ colnames(track) <- c("input", "filtered", "denoisedF", "denoisedR", "merged",
 rownames(track) <- sample.names
 head(track)
 
+# Assign taxonomy ----
 # Assign taxonomy to the sequence variants
 taxa <- assignTaxonomy(seqtab.nochim, "C:/Users/ursula/Dropbox/Personal_Coding_Projects/Microbiome/dada2_tutorial/silva_nr_v128_train_set.fa.gz", multithread=TRUE)
 
@@ -155,6 +178,7 @@ taxid.print <- taxid # Removing sequence rownames for display only
 rownames(taxid.print) <- NULL
 head(taxid.print)
 
+# Accuracy ---- 
 # Evaluating DADA2's accuracy on the mock community
 unqs.mock <- seqtab.nochim["Mock",]
 # Drop ASVs absent in the Mock
@@ -167,6 +191,7 @@ match.ref <- sum(sapply(names(unqs.mock), function(x) any(grepl(x, mock.ref))))
 cat("Of those,", sum(match.ref), 
     "were exact matches to the expected reference sequences.\n")
 
+# phyloseq plots ----
 # Construct a simple sample data.frame from the information encoded in the 
 # filenames
 samples.out <- rownames(seqtab.nochim)
@@ -199,5 +224,5 @@ ps.top20 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
 ps.top20 <- prune_taxa(top20, ps.top20)
 plot_bar(ps.top20, x="Day", fill="Family") + facet_wrap(~When, scales="free_x")
 
-# Save Session before troubleshooting section below
+# Save Session ----
 save.image("C:/Users/ursula/Dropbox/Personal_Coding_Projects/Microbiome/dada2_tutorial/dada2_tutorial.RData")
