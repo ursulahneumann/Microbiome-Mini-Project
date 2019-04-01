@@ -1,19 +1,23 @@
-# Following DADA2 Pipeline Tutorial on a Small Multi-Sample Dataset
+# DADA2 Pipeline on Canine IBD samples 
 # Ursula H. Neumann
 # Mar 25/19
 
 # Introduction ----
-# Tutorial instructions can be found here:
+# Following dada2 tutorial found here:
 # https://benjjneb.github.io/dada2/tutorial.html
 
-# Our starting point is a set of Illumina-sequenced paired-end fastq files that 
-# have been split (or "demultiplexed") by sample and from which the 
-# barcodes/adapters have already been removed. The end product is an amplicon 
-# sequence variant (ASV) table, a higher-resolution analogue of the traditional 
-# OTU table, which records the number of times each exact amplicon sequence 
-# variant was observed in each sample. We also assign taxonomy to the output 
-# sequences, and demonstrate how the data can be imported into the popular 
-# phyloseq R package for the analysis of microbiome data.
+# The canine samples only have forward reads so the analysis will be slightly
+# different than what is shown in the tutorial which uses paired-end fastq 
+# files.  I'm unsure if the barcodes/adapters have already been removed.  
+
+# I have been asked to investigate the healthy vs IBD only.  Since the acute 
+# hem. diarrhea group is a small number of samples I'll do the analysis on them
+# as well for now and remove them later on.
+
+#                         N
+# healthy                98
+# IBD                    79
+# acute hem. diarrhea    15
 
 # Set up ----
 # Load packages
@@ -25,51 +29,90 @@ library(ggplot2); packageVersion("ggplot2")
 # Set ggplot2 theme
 theme_set(theme_bw())
 
+# The following samples had less than 1000 reads and were not included
+# in the analysis.  This number may need to be changed. It may be 
+# better to remove these samples programmatically in the future but
+# I haven't figured that out yet.
+
+# AHD.26
+# Finland.HC.16
+# Finland.HC.18
+# Finland.HC.5
+# France.DC3
+# Leda.A41
+# Mel.TX.HC1
+# Mel.TX.HC12
+# Mel.TX.HC14
+# Nor.C11
+# Nor.C15
+# RVC11
+# RVC16
+# Sweden.HC.18
+# Sweden.IBD.063A
+# Sweden.IBD.097A
+# Sweden.IBD.103A
+
 # Define path and view files
-path <- "C:/Users/ursula/Dropbox/Personal_Coding_Projects/Microbiome/dada2_tutorial/data"
+path <- "C:/Users/ursula/Dropbox/Personal_Coding_Projects/Microbiome/dada2_canine_ibd/data"
 list.files(path)
 
-# Now we read in the names of the fastq files, and perform some string 
-# manipulation to get matched lists of the forward and reverse fastq files
-# String manipulation may need to be different for your own files
+# Forward reads can be identified using the .fastq ending
+fnFs <- sort(list.files(path, pattern=".fastq", full.names = TRUE))
 
-# Forward and reverse fastq filenames have format: SAMPLENAME_R1_001.fastq and 
-# SAMPLENAME_R2_001.fastq
-fnFs <- sort(list.files(path, pattern="_R1_001.fastq", full.names = TRUE))
-fnRs <- sort(list.files(path, pattern="_R2_001.fastq", full.names = TRUE))
+# Write function to extract sample names from filepaths so that it matches the
+# anonymized_name column of the metadata file
+extract_sample_ids <- function(filenames){
+  processed <- unname(sapply(filenames, strsplit, '\\.')) # split on period
+  processed <- sapply(processed, head, -1) # Remove the ".fastq"
+  processed <- sapply(processed, tail, -1) # Remove the "833"
+  processed <- sapply(processed, paste, collapse='.') # Paste with period
+  return(processed)
+}
 
-# Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq
-sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
+# Extract sample names from filepaths
+sample.names <- extract_sample_ids(fnFs)
+sample.names
 
 # Read quality ----
 # Inspect quality of forward reads
+
 # In gray-scale is a heat map of the frequency of each quality score at each 
 # base position. The median quality score at each position is shown by the green
 # line, and the quartiles of the quality score distribution by the orange lines. 
 # The red line shows the scaled proportion of reads that extend to at least that
 # position
 plotQualityProfile(fnFs[1:2])
-
-# Inspect quality of reverse reads.
-plotQualityProfile(fnRs[1:2])
+plotQualityProfile(fnFs[3:4])
+plotQualityProfile(fnFs[5:6])
 
 # Filter and trim ----
 # Place filtered files in filtered/ subdirectory
-filtFs <- file.path(path, "filtered", paste0(sample.names, "_F_filt.fastq.gz"))
-filtRs <- file.path(path, "filtered", paste0(sample.names, "_R_filt.fastq.gz"))
+filtFs <- file.path(path, "filtered", paste0(sample.names, "_filt.fastq.gz"))
 
 # Note - on Windows set multithread=FALSE
-out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,160),
+# A length of 75 was chosen based on the quality profile graphs. This should
+# be investigated and tested further
+out <- filterAndTrim(fnFs, filtFs, truncLen=c(75),
                      maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE,
                      compress=TRUE, multithread=FALSE)
 
 # View first few lines of 'out'
 head(out)
 
+# The code below was to try to detect and then remove any samples that had less
+# than 1000 reads.  I ended up manually removing the files but would still be
+# interested in trying to do this programmatically
+#### Convert out to a df
+#### out_df <- as.data.frame(out)
+#### Determine which files have less than 1000 reads
+#### files_low_reads <- row.names(out_df)[out_df$reads.in <1000]
+#### Remove "833." from characters
+#### files_low_reads <- substring(files_low_reads, first=5)
+#### Generate path names to move files
+#### files_low_reads <- paste(path, "/filtered/", files_low_reads, ".gz", sep="")
+
 # Learn error rates ----
-# Learn the error rates
 errF <- learnErrors(filtFs, multithread=TRUE)
-errR <- learnErrors(filtRs, multithread=TRUE)
 
 # Visualize the estimated error rates
 # The error rates for each possible transition (A-->C, A-->G, ...) are shown. 
@@ -80,38 +123,37 @@ errR <- learnErrors(filtRs, multithread=TRUE)
 plotErrors(errF, nominalQ=TRUE)
 
 # Dereplication ----
-# Perform dereplication.  Dereplication combines all identical sequencing reads 
-# into into "unique sequences" with a corresponding "abundance" equal to the 
-# number of reads with that unique sequence. Dereplication substantially reduces
-# computation time by eliminating redundant comparisons.
+# Dereplication combines all identical sequencing reads into into "unique 
+# sequences" with a corresponding "abundance" equal to the number of reads with 
+# that unique sequence. Dereplication substantially reduces computation time by 
+# eliminating redundant comparisons.
 derepFs <- derepFastq(filtFs, verbose=TRUE)
-derepRs <- derepFastq(filtRs, verbose=TRUE)
 
 # Name the derep-class objects by the sample names
 names(derepFs) <- sample.names
-names(derepRs) <- sample.names
+
+for (i in derepFs)
+{
+  print(min(i$quals))
+}
+
+# It looks like for many of the samples the minimum quality is 5 which seems too 
+# low.  Double check the values from the tutorial.  This may require further 
+# optimization.
 
 # Sample inference ----
 # Apply the core sample inference algorithm to the dereplicated data.
 dadaFs <- dada(derepFs, err=errF, multithread=TRUE)
-dadaRs <- dada(derepRs, err=errR, multithread=TRUE)
 
 # Inspect the returned dada-class object.
 dadaFs[[1]]
 
-# Merge paired reads ----
-# Merge the forward/reverse reads together to obtain the full denoised sequences
-mergers <- mergePairs(dadaFs, derepFs, dadaRs, derepRs, verbose=TRUE)
-
-# Inspect the merger data.frame from the first sample
-head(mergers[[1]])
-
 # Sequence table ----
 # Construct an amplicon sequence variant table (ASV) table.
-seqtab <- makeSequenceTable(mergers)
+seqtab <- makeSequenceTable(dadaFs)
 dim(seqtab)
 
-# Inspect distribution of sequence lengths
+# Inspect the distribution of sequence lengths
 table(nchar(getSequences(seqtab)))
 
 # Remove chimeras ----
@@ -124,13 +166,11 @@ sum(seqtab.nochim)/sum(seqtab)
 # As a final check of our progress, we'll look at the number of reads that made 
 # it through each step in the pipeline:
 getN <- function(x) sum(getUniques(x))
-track <- cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), 
-               sapply(mergers, getN), rowSums(seqtab.nochim))
+track <- cbind(out, sapply(dadaFs, getN), rowSums(seqtab.nochim))
 
 # If processing a single sample, remove the sapply calls: 
 # e.g. replace sapply(dadaFs, getN) with getN(dadaFs)
-colnames(track) <- c("input", "filtered", "denoisedF", "denoisedR", "merged", 
-                     "nonchim")
+colnames(track) <- c("input", "filtered", "denoisedF", "nonchim")
 rownames(track) <- sample.names
 head(track)
 
@@ -179,50 +219,56 @@ rownames(taxid.print) <- NULL
 head(taxid.print)
 
 # Accuracy ---- 
-# Evaluating DADA2's accuracy on the mock community
-unqs.mock <- seqtab.nochim["Mock",]
-# Drop ASVs absent in the Mock
-unqs.mock <- sort(unqs.mock[unqs.mock>0], decreasing=TRUE) 
-cat("DADA2 inferred", length(unqs.mock), 
-    "sample sequences present in the Mock community.\n")
+# Below is from the tutorial which used a mock community.  I'm not sure this is
+# relevant here.
+#### Evaluating DADA2's accuracy on the mock community
+##unqs.mock <- seqtab.nochim["Mock",]
+#### Drop ASVs absent in the Mock
+##unqs.mock <- sort(unqs.mock[unqs.mock>0], decreasing=TRUE) 
+##cat("DADA2 inferred", length(unqs.mock), 
+##    "sample sequences present in the Mock community.\n")
 
-mock.ref <- getSequences(file.path(path, "HMP_MOCK.v35.fasta"))
-match.ref <- sum(sapply(names(unqs.mock), function(x) any(grepl(x, mock.ref))))
-cat("Of those,", sum(match.ref), 
-    "were exact matches to the expected reference sequences.\n")
+##mock.ref <- getSequences(file.path(path, "HMP_MOCK.v35.fasta"))
+##match.ref <- sum(sapply(names(unqs.mock), function(x) any(grepl(x, mock.ref))))
+##cat("Of those,", sum(match.ref), 
+##    "were exact matches to the expected reference sequences.\n")
 
 # phyloseq plots ----
+
+# Read in metadata file
+metadata = read.table('C:/Users/ursula/Dropbox/Personal_Coding_Projects/Microbiome/dada2_canine_ibd/data/metadata.txt', 
+                      sep='\t',
+                      header = TRUE)
+
 # Construct a simple sample data.frame from the information encoded in the 
-# filenames
+# filenames and the metadata file
 samples.out <- rownames(seqtab.nochim)
-subject <- sapply(strsplit(samples.out, "D"), `[`, 1)
-gender <- substr(subject,1,1)
-subject <- substr(subject,2,999)
-day <- as.integer(sapply(strsplit(samples.out, "D"), `[`, 2))
-samdf <- data.frame(Subject=subject, Gender=gender, Day=day)
-samdf$When <- "Early"
-samdf$When[samdf$Day>100] <- "Late"
-rownames(samdf) <- samples.out
+sample_boolean <- as.character(metadata$anonymized_name) %in% samples.out
+metadata_incl <- metadata[sample_boolean,]
+
+samdf <- data.frame(Disease_Status=metadata_incl$disease_stat)
+rownames(samdf) <- metadata_incl$anonymized_name
+samdf
 
 # Construct a phyloseq object directly from the dada2 outputs
 ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
                sample_data(samdf), 
                tax_table(taxa))
-ps <- prune_samples(sample_names(ps) != "Mock", ps) # Remove mock sample
 ps
 
 # Visualize alpha-diversity:
-plot_richness(ps, x="Day", measures=c("Shannon", "Simpson"), color="When")
+plot_richness(ps, measures=c("Shannon", "Simpson"), color="Disease_Status")
 
 # Transform data to proportions as appropriate for Bray-Curtis distances
+# This does not yet work as expected, will need to tweek.
 ps.prop <- transform_sample_counts(ps, function(otu) otu/sum(otu))
 ord.nmds.bray <- ordinate(ps.prop, method="NMDS", distance="bray")
-plot_ordination(ps.prop, ord.nmds.bray, color="When", title="Bray NMDS")
+plot_ordination(ps.prop, ord.nmds.bray, color="Disease_Status", title="Bray NMDS")
 
 top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:20]
 ps.top20 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
 ps.top20 <- prune_taxa(top20, ps.top20)
-plot_bar(ps.top20, x="Day", fill="Family") + facet_wrap(~When, scales="free_x")
+plot_bar(ps.top20, fill="Family") + facet_wrap(~"Disease_Status", scales="free_x")
 
 # Save Session ----
-save.image("C:/Users/ursula/Dropbox/Personal_Coding_Projects/Microbiome/dada2_tutorial/dada2_tutorial.RData")
+save.image("C:/Users/ursula/Dropbox/Personal_Coding_Projects/Microbiome/dada2_canine_ibd/dada2_canine_ibd.RData")
