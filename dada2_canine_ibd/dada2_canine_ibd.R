@@ -8,16 +8,29 @@
 
 # The canine samples only have forward reads so the analysis will be slightly
 # different than what is shown in the tutorial which uses paired-end fastq 
-# files.  I'm unsure if the barcodes/adapters have already been removed.  
+# files.  I believe the barcodes and primers have already been removed.  
 
-# I have been asked to investigate the healthy vs IBD only.  Since the acute 
-# hem. diarrhea group is a small number of samples I'll do the analysis on them
-# as well for now and remove them later on.
+# I have been asked to investigate the healthy vs IBD only and this removed the
+# acute hem. diarrhea samples (833.AHD.11 - 833.AHD.30).  
 
-#                         N
-# healthy                98
-# IBD                    79
-# acute hem. diarrhea    15
+# Samples with less than 15000 reads were removed from the analysis as was 
+# performed by the authors.  This value could be changed in the future.
+
+# AHD.77
+# AHD.79
+# California.HC19
+# California.HC23
+# Leda.A9
+# Leda.A45
+# Leda.A65
+# Mel.TX.HC5
+# Nor.C5
+# Nor.C13
+
+#           N (start)     N (reads>15000)
+# total        177               150
+# healthy      98
+# IBD          79
 
 # Set up ----
 # Load packages
@@ -93,7 +106,7 @@ filtFs <- file.path(path, "filtered", paste0(sample.names, "_filt.fastq.gz"))
 # A length of 75 was chosen based on the quality profile graphs. This should
 # be investigated and tested further
 out <- filterAndTrim(fnFs, filtFs, truncLen=c(75),
-                     maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE,
+                     maxN=0, maxEE=c(2), truncQ=2, rm.phix=TRUE,
                      compress=TRUE, multithread=FALSE)
 
 # View first few lines of 'out'
