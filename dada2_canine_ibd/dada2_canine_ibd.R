@@ -13,19 +13,37 @@
 # I have been asked to investigate the healthy vs IBD only and this removed the
 # acute hem. diarrhea samples (833.AHD.11 - 833.AHD.30).  
 
-# Samples with less than 15000 reads were removed from the analysis as was 
-# performed by the authors.  This value could be changed in the future.
+# The following samples had less than 15000 reads and were not included
+# in the analysis.  This number may need to be changed. It may be 
+# better to remove these samples programmatically in the future but
+# I haven't figured that out yet.
 
 # AHD.77
 # AHD.79
 # California.HC19
 # California.HC23
+# Finland.HC.16
+# Finland.HC.18
+# Finland.HC.5
+# France.DC3
 # Leda.A9
+# Leda.A41
 # Leda.A45
 # Leda.A65
+# Mel.TX.HC1
 # Mel.TX.HC5
+# Mel.TX.HC12
+# Mel.TX.HC14
 # Nor.C5
+# Nor.C11
 # Nor.C13
+# Nor.C15
+# RVC11
+# RVC16
+# Sweden.HC.18
+# Sweden.IBD.063A
+# Sweden.IBD.097A
+# Sweden.IBD.103A
 
 #           N (start)     N (reads>15000)
 # total        177               150
@@ -41,29 +59,6 @@ library(ggplot2); packageVersion("ggplot2")
 
 # Set ggplot2 theme
 theme_set(theme_bw())
-
-# The following samples had less than 1000 reads and were not included
-# in the analysis.  This number may need to be changed. It may be 
-# better to remove these samples programmatically in the future but
-# I haven't figured that out yet.
-
-# AHD.26
-# Finland.HC.16
-# Finland.HC.18
-# Finland.HC.5
-# France.DC3
-# Leda.A41
-# Mel.TX.HC1
-# Mel.TX.HC12
-# Mel.TX.HC14
-# Nor.C11
-# Nor.C15
-# RVC11
-# RVC16
-# Sweden.HC.18
-# Sweden.IBD.063A
-# Sweden.IBD.097A
-# Sweden.IBD.103A
 
 # Define path and view files
 path <- "C:/Users/ursula/Dropbox/Personal_Coding_Projects/Microbiome/dada2_canine_ibd/data"
