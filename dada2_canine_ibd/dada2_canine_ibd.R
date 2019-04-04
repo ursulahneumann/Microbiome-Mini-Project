@@ -47,8 +47,8 @@
 
 #           N (start)     N (reads>15000)
 # total        177               150
-# healthy      98
-# IBD          79
+# healthy      98                85
+# IBD          79                65
 
 # Set up ----
 # Load packages
@@ -145,9 +145,9 @@ for (i in derepFs)
   print(min(i$quals))
 }
 
-# It looks like for many of the samples the minimum quality is 5 which seems too 
-# low.  Double check the values from the tutorial.  This may require further 
-# optimization.
+# It looks like for many of the samples the minimum quality is 5 which seems 
+# quite low.  The minimum values for both the forward and reverse reads in the
+# tutorial were 12.  This may require further optimization.
 
 # Sample inference ----
 # Apply the core sample inference algorithm to the dereplicated data.
@@ -264,8 +264,23 @@ ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE),
                tax_table(taxa))
 ps
 
-# Visualize alpha-diversity:
+# Visualize alpha-diversity
+# This function gives a warning message suggesting to use un-trimmed data;
+# however, the tutorial uses the function on the trimmed data.  I'm unsure
+# whether we can ignore this error since we are using the dada2 method and not
+# OTUs or if un-trimmed data should be used.
 plot_richness(ps, measures=c("Shannon", "Simpson"), color="Disease_Status")
+
+# Graph alpha diversity with samples "grouped" by disease status
+p <- plot_richness(ps, measures=c("Shannon", "Simpson"), color="Disease_Status")
+new_order <- p$data$samples[order(p$data$Disease_Status[1:150])]
+p$data$samples <- as.character(p$data$samples)
+p$data$samples <- factor(p$data$samples, levels = new_order)
+p
+
+# Obtain raw measurements so I can make bar graph
+alpha <- estimate_richness(ps, measures=c("Shannon", "Simpson"))
+alpha_df <- merge(alpha, samdf, by.x="row.names", by.y="row.names")
 
 # Transform data to proportions as appropriate for Bray-Curtis distances
 # This does not yet work as expected, will need to tweek.
