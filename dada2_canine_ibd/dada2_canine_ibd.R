@@ -256,7 +256,10 @@ metadata_incl <- metadata[sample_boolean,]
 
 samdf <- data.frame(Disease_Status=metadata_incl$disease_stat)
 rownames(samdf) <- metadata_incl$anonymized_name
-samdf
+
+# Add throwaway column to ensure plot_ordination function will work according to
+# this bug - https://github.com/joey711/phyloseq/issues/541
+samdf$Extra <- ""
 
 # Construct a phyloseq object directly from the dada2 outputs
 ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
@@ -284,15 +287,15 @@ alpha <- estimate_richness(ps, measures=c("Observed","Chao1","ACE","Shannon","Si
 alpha_df <- merge(alpha, samdf, by.x="row.names", by.y="row.names")
 
 # Transform data to proportions as appropriate for Bray-Curtis distances
-# This does not yet work as expected, will need to tweek.
 ps.prop <- transform_sample_counts(ps, function(otu) otu/sum(otu))
 ord.nmds.bray <- ordinate(ps.prop, method="NMDS", distance="bray")
 plot_ordination(ps.prop, ord.nmds.bray, color="Disease_Status", title="Bray NMDS")
 
+# This does not yet work as expected, will need to tweek.
 top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:20]
 ps.top20 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
 ps.top20 <- prune_taxa(top20, ps.top20)
-plot_bar(ps.top20, fill="Family") + facet_wrap(~"Disease_Status", scales="free_x")
+plot_bar(ps.top20, fill="Family") + facet_wrap(~Disease_Status, scales="free_x")
 
 # Save Session ----
 save.image("C:/Users/ursula/Dropbox/Personal_Coding_Projects/Microbiome/dada2_canine_ibd/dada2_canine_ibd.RData")
