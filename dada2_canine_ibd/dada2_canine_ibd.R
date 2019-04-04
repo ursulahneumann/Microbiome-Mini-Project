@@ -204,27 +204,27 @@ head(taxa.print)
 # the IDTAXA algorithm reports classification performance that is better than 
 # the long-time standard set by the naive Bayesian classifier. 
 
-# Create a DNAStringSet from the ASVs
-dna <- DNAStringSet(getSequences(seqtab.nochim)) 
-load("C:/Users/ursula/Dropbox/Personal_Coding_Projects/Microbiome/dada2_tutorial/silva_SSU_r132_March2018.RData") 
-# processors=NULL or =2 causes my RStudio to crash
-ids <- IdTaxa(dna, trainingSet, strand="top", processors=1, verbose=TRUE) 
-# Ranks of interest
-ranks <- c("Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species") 
-# Convert the output object of class "Taxa" to a matrix analogous to the output 
-# from assignTaxonomy
-taxid <- t(sapply(ids, function(x) {
-  m <- match(ranks, x$rank)
-  taxa <- x$taxon[m]
-  taxa[startsWith(taxa, "unclassified_")] <- NA
-  taxa
-}))
-colnames(taxid) <- ranks; rownames(taxid) <- getSequences(seqtab.nochim)
+## Create a DNAStringSet from the ASVs
+#dna <- DNAStringSet(getSequences(seqtab.nochim)) 
+#load("C:/Users/ursula/Dropbox/Personal_Coding_Projects/Microbiome/dada2_tutorial/silva_SSU_r132_March2018.RData") 
+## processors=NULL or =2 causes my RStudio to crash
+#ids <- IdTaxa(dna, trainingSet, strand="top", processors=1, verbose=TRUE) 
+## Ranks of interest
+#ranks <- c("Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species") 
+## Convert the output object of class "Taxa" to a matrix analogous to the output 
+## from assignTaxonomy
+#taxid <- t(sapply(ids, function(x) {
+#  m <- match(ranks, x$rank)
+#  taxa <- x$taxon[m]
+#  taxa[startsWith(taxa, "unclassified_")] <- NA
+#  taxa
+#}))
+#colnames(taxid) <- ranks; rownames(taxid) <- getSequences(seqtab.nochim)
 
-# Redefine taxa to be taxid and redo analysis
-taxid.print <- taxid # Removing sequence rownames for display only
-rownames(taxid.print) <- NULL
-head(taxid.print)
+## Redefine taxa to be taxid and redo analysis
+#taxid.print <- taxid # Removing sequence rownames for display only
+#rownames(taxid.print) <- NULL
+#head(taxid.print)
 
 # Accuracy ---- 
 # Below is from the tutorial which used a mock community.  I'm not sure this is
@@ -291,11 +291,20 @@ ps.prop <- transform_sample_counts(ps, function(otu) otu/sum(otu))
 ord.nmds.bray <- ordinate(ps.prop, method="NMDS", distance="bray")
 plot_ordination(ps.prop, ord.nmds.bray, color="Disease_Status", title="Bray NMDS")
 
-# This does not yet work as expected, will need to tweek.
+# Graph top 20 abundant sequences
 top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:20]
 ps.top20 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
 ps.top20 <- prune_taxa(top20, ps.top20)
 plot_bar(ps.top20, fill="Family") + facet_wrap(~Disease_Status, scales="free_x")
+
+# Export csv of top 20 abundant sequences and proportions per sample
+ps.top20.df <- as.data.frame(ps.top20@otu_table)
+ps.top20.df <- merge(ps.top20.df, samdf, by.x="row.names", by.y="row.names")
+ps.top20.df$Extra <- NULL
+write.csv(ps.top20.df,'top_20_props.csv')
+
+# Export csv of top 20 abundant sequences and their taxological information
+write.csv(taxa[1:20,],'top_20_taxa.csv')
 
 # Save Session ----
 save.image("C:/Users/ursula/Dropbox/Personal_Coding_Projects/Microbiome/dada2_canine_ibd/dada2_canine_ibd.RData")
