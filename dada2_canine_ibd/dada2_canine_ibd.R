@@ -270,6 +270,7 @@ ps
 # whether we can ignore this error since we are using the dada2 method and not
 # OTUs or if un-trimmed data should be used.
 plot_richness(ps, measures=c("Shannon", "Simpson"), color="Disease_Status")
+plot_richness(ps, measures=c("Chao1", "ACE"), color="Disease_Status")
 
 # Graph alpha diversity with samples "grouped" by disease status
 p <- plot_richness(ps, measures=c("Shannon", "Simpson"), color="Disease_Status")
@@ -278,8 +279,8 @@ p$data$samples <- as.character(p$data$samples)
 p$data$samples <- factor(p$data$samples, levels = new_order)
 p
 
-# Obtain raw measurements so I can make bar graph
-alpha <- estimate_richness(ps, measures=c("Shannon", "Simpson"))
+# Obtain raw measurements and merge with disease state column
+alpha <- estimate_richness(ps, measures=c("Observed","Chao1","ACE","Shannon","Simpson","InvSimpson","Fisher"))
 alpha_df <- merge(alpha, samdf, by.x="row.names", by.y="row.names")
 
 # Transform data to proportions as appropriate for Bray-Curtis distances
