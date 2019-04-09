@@ -15,7 +15,7 @@ To learn how to analyze microbiome data in R.
 Data files used for the dada2 tutorial can be found here:
 https://benjjneb.github.io/dada2/tutorial.html
 
-Data files for the canine ibd analysis can be found here:
+Data files for the canine IBD analysis can be found here:
 https://www.ebi.ac.uk/ena/data/view/PRJEB13362
 
 Files required for taxonomical assignment can be found here:
@@ -29,6 +29,8 @@ https://benjjneb.github.io/dada2/training.html
 
 **dada2_canine_ibd.R** - R script detailing the analysis of canine ibd files using the dada2 package
 
+**results_summary.pdf** - Summary file showing graphs of alpha diversity and differential proportions of top 20 taxa
+
 ## Libraries Required
 **dada2** - For accurate, high-resolution sample inference from amplicon sequencing data
 
@@ -37,7 +39,7 @@ https://benjjneb.github.io/dada2/training.html
 **phyloseq** and **ggplot2** - Handling, analysis and visualization of high-throughput microbiome census data
 
 ## Summary of results
-To be filled in upon project completion.
+See results_summary.pdf.  Dogs with IBD have reduced alpha diversity compared to healthy dogs.  Various differences in microbiome were detected between IBD and healthy dogs.
 
 ## Licenses and Acknowledgements
-To be filled in upon project completion.
+The paper describing the original analysis of the data can be found here: https://www.nature.com/articles/nmicrobiol2016177.  The GitHub profile of the original author's work can be found here: https://github.com/ElDeveloper/dogs/.  
